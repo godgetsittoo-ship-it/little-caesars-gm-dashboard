@@ -1,1 +1,89 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#171717">
+<title>Little Caesars GM Dashboard</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101114;color:#fff;font-family:Arial,sans-serif}
+header{padding:22px 16px;background:#202126;border-bottom:3px solid #f58220}
+h1{font-size:24px;margin:0}
+small,p{color:#aaa}
+main{max-width:850px;margin:auto;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.card,.panel{background:#202126;border:1px solid #383940;border-radius:12px;padding:16px}
+.card small{font-size:12px}
+.value{font-size:25px;font-weight:bold;margin-top:12px;overflow-wrap:anywhere}
+.panel{margin-top:16px}
+h2{font-size:18px}
+textarea{width:100%;height:160px;background:#111;color:white;border:1px solid #777;border-radius:8px;padding:12px}
+button{background:#f58220;color:#111;border:0;border-radius:8px;padding:13px;font-weight:bold;margin-top:10px}
+#status{font-size:13px}
+</style>
+</head>
+<body>
+<header>
+<h1>GM Command Center</h1>
+<small>Little Caesars | Personal Dashboard</small>
+</header>
+<main>
+<div class="grid">
+<div class="card"><small>Net Sales</small><div class="value" id="sales">—</div></div>
+<div class="card"><small>Labor</small><div class="value" id="labor">—</div></div>
+<div class="card"><small>F&amp;P</small><div class="value" id="fp">—</div></div>
+<div class="card"><small>Sales Growth</small><div class="value" id="growth">—</div></div>
+<div class="card"><small>Transactions</small><div class="value" id="transactions">—</div></div>
+<div class="card"><small>Average Ticket</small><div class="value" id="ticket">—</div></div>
+</div>
+<section class="panel">
+<h2>Latest Snapshot</h2>
+<p id="updated">No snapshot imported yet.</p>
+<p>Figures are imported manually, not live Gateway data.</p>
+</section>
+<section class="panel">
+<h2>Import from ChatGPT</h2>
+<p>Paste a JSON snapshot here.</p>
+<textarea id="snapshot" placeholder='{"net_sales":2500,"labor_pct":18.5,"fp_pct":27,"transactions":150}'></textarea>
+<button onclick="saveSnapshot()">Save Snapshot</button>
+<p id="status" role="status"></p>
+</section>
+</main>
+<script>
+const keys=["net_sales","labor_pct","fp_pct","sales_growth_pct","transactions","average_ticket"];
+function money(v){return "$"+Number(v).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2})}
+function pct(v){return Number(v).toFixed(1)+"%"}
+function show(d){
+const set=(id,v)=>document.getElementById(id).textContent=v;
+set("sales",d.net_sales==null?"—":money(d.net_sales));
+set("labor",d.labor_pct==null?"—":pct(d.labor_pct));
+set("fp",d.fp_pct==null?"—":pct(d.fp_pct));
+set("growth",d.sales_growth_pct==null?"—":pct(d.sales_growth_pct));
+set("transactions",d.transactions==null?"—":Number(d.transactions).toLocaleString());
+set("ticket",d.average_ticket==null?"—":money(d.average_ticket));
+set("updated","Last imported: "+(d.imported_at||"Unknown"));
+}
+function saveSnapshot(){
+const status=document.getElementById("status");
+try{
+const d=JSON.parse(document.getElementById("snapshot").value);
+if(!d||typeof d!=="object"||Array.isArray(d))throw Error("Expected a JSON object.");
+for(const k of keys){
+if(d[k]!=null&&(typeof d[k]!=="number"||!Number.isFinite(d[k])))throw Error(k+" must be a number.");
+}
+if(!keys.some(k=>d[k]!=null))throw Error("No metrics found.");
+d.imported_at=new Date().toLocaleString();
+localStorage.setItem("gm_snapshot_v1",JSON.stringify(d));
+show(d);
+status.textContent="Snapshot saved on this device.";
+}catch(e){status.textContent="Import failed: "+e.message}
+}
+try{
+const saved=localStorage.getItem("gm_snapshot_v1");
+if(saved)show(JSON.parse(saved));
+}catch(e){document.getElementById("status").textContent="Could not load saved snapshot."}
+</script>
+</body>
+</html>
